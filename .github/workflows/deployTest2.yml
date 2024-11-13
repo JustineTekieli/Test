@@ -46,9 +46,9 @@ jobs:
       # Step 7: Copy deploy.sh to Azure server
       - name: Copy deploy.sh to Azure server
         run: |
-          scp -o StrictHostKeyChecking=no deploy.sh azureuser@<your-server-ip>:/home/azureuser/deploy.sh
+          scp -o StrictHostKeyChecking=no deploy.sh azureuser@20.224.160.198:/home/azureuser/deploy.sh
 
-      # Step 8: Run deploy.sh script on Azure server
+      # Step 8: Run deploy.sh on Azure server
       - name: Run deploy.sh on Azure server
         run: |
-          ssh -o StrictHostKeyChecking=no azureuser@<your-server-ip> 'bash /home/azureuser/deploy.sh'
+          ssh -o StrictHostKeyChecking=no azureuser@20.224.160.198 'bash /home/azureuser/deploy.sh'
