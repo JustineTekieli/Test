@@ -1,4 +1,5 @@
 name: Deploy to Azure MicroK8s
+
 on:
   push:
     branches:
@@ -29,17 +30,25 @@ jobs:
       - name: Push Docker image
         run: docker push justine745/webservers:latest
 
-      # Step 5: Deploy to Azure MicroK8s
+      # Step 5: Set up SSH for Azure server
       - name: Set up SSH for Azure server
         uses: webfactory/ssh-agent@v0.5.3
         with:
           ssh-private-key: ${{ secrets.AZURE_SSH_KEY }}
 
-      - name: Deploy to Azure MicroK8s
-        env:
-          DOCKER_IMAGE: "justine745/webservers:latest"
+      # Step 6: Create deploy.sh script file
+      - name: Create deploy.sh script
         run: |
-          ssh -o StrictHostKeyChecking=no azureuser@<your-server-ip> << 'EOF'
-            sudo microk8s kubectl set image deployment/nginx-webserver nginx=$DOCKER_IMAGE
-            sudo microk8s kubectl rollout status deployment/nginx-webserver
-          EOF
+          echo '#!/bin/bash' > deploy.sh
+          echo 'sudo microk8s kubectl set image deployment/nginx-webserver nginx=justine745/webservers:latest' >> deploy.sh
+          echo 'sudo microk8s kubectl rollout status deployment/nginx-webserver' >> deploy.sh
+
+      # Step 7: Copy deploy.sh to Azure server
+      - name: Copy deploy.sh to Azure server
+        run: |
+          scp -o StrictHostKeyChecking=no deploy.sh azureuser@<your-server-ip>:/home/azureuser/deploy.sh
+
+      # Step 8: Run deploy.sh script on Azure server
+      - name: Run deploy.sh on Azure server
+        run: |
+          ssh -o StrictHostKeyChecking=no azureuser@<your-server-ip> 'bash /home/azureuser/deploy.sh'
