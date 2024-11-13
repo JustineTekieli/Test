@@ -45,18 +45,17 @@ jobs:
       - name: Create deploy.sh script
         run: |
           echo '#!/bin/bash' > deploy.sh
-          echo 'sudo microk8s kubectl set image deployment/nginx-webserver nginx=justine745/webservers:latest' >> deploy.sh
-          echo 'sudo microk8s kubectl rollout status deployment/nginx-webserver' >> deploy.sh
-          
-          # Step to create the ConfigMap with the custom index.html
-          echo 'kubectl create configmap nginx-index-html --from-file=index.html' >> deploy.sh
-          echo 'sudo microk8s kubectl apply -f nginx-webserver-deployment.yml' >> deploy.sh
+          echo 'sudo microk8s.kubectl set image deployment/nginx-webserver nginx=justine745/webservers:latest' >> deploy.sh
+          echo 'sudo microk8s.kubectl rollout status deployment/nginx-webserver' >> deploy.sh
+          echo 'sudo microk8s.kubectl create configmap nginx-index-html --from-file=index.html' >> deploy.sh
+          echo 'sudo microk8s.kubectl apply -f /home/azureuser/nginx-webserver-deployment.yml' >> deploy.sh
 
-      # Step 8: Copy deploy.sh and index.html to Azure server
-      - name: Copy deploy.sh and index.html to Azure server
+      # Step 8: Copy deploy.sh, index.html, and deployment YAML to Azure server
+      - name: Copy deploy.sh, index.html, and deployment YAML to Azure server
         run: |
           scp -o StrictHostKeyChecking=no deploy.sh azureuser@20.224.160.198:/home/azureuser/deploy.sh
           scp -o StrictHostKeyChecking=no index.html azureuser@20.224.160.198:/home/azureuser/index.html
+          scp -o StrictHostKeyChecking=no nginx-webserver-deployment.yml azureuser@20.224.160.198:/home/azureuser/nginx-webserver-deployment.yml
 
       # Step 9: Run deploy.sh on Azure server
       - name: Run deploy.sh on Azure server
