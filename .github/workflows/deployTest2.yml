@@ -1,4 +1,4 @@
-name: Update Nginx Web Server on Azure
+name: Deploy to Azure MicroK8s
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - main  # Trigger the workflow when code is pushed to the main branch
 
 jobs:
-  update-webserver:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -14,18 +14,37 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v2
 
-      # Step 2: Set up SSH for Azure server
+      # Step 2: Log in to Docker Hub
+      - name: Log in to Docker Hub
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        run: |
+          echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin
+
+      # Step 3: Build Docker image
+      - name: Build Docker image
+        run: docker build -t justine745/webservers:latest .
+
+      # Step 4: Push Docker image to Docker Hub
+      - name: Push Docker image
+        run: docker push justine745/webservers:latest
+
+      # Step 5: Set up SSH for Azure server
       - name: Set up SSH for Azure server
         uses: webfactory/ssh-agent@v0.5.3
         with:
           ssh-private-key: ${{ secrets.AZURE_SSH_KEY }}
 
-      # Step 3: Copy index.html to the Azure VM
-      - name: Copy index.html to Azure VM
+      # Step 6: Deploy the latest image on Azure using kubectl
+      - name: Deploy to MicroK8s
         run: |
-          scp -o StrictHostKeyChecking=no ./index.html azureuser@20.224.160.198:/usr/share/nginx/html/index.html
+          ssh -o StrictHostKeyChecking=no azureuser@20.224.160.198 << 'EOF'
+            sudo microk8s kubectl set image deployment/nginx-webserver nginx=justine745/webservers:latest
+            sudo microk8s kubectl rollout status deployment/nginx-webserver
+          EOF
 
-      # Step 4: Restart Nginx to apply the changes
-      - name: Restart Nginx
+      # Step 7: Copy the index.html from GitHub to the Nginx container
+      - name: Copy index.html to Nginx container
         run: |
-          ssh -o StrictHostKeyChecking=no azureuser@20.224.160.198 'sudo systemctl restart nginx'
+          kubectl get pods -l app=nginx-webserver -o jsonpath='{.items[0].metadata.name}' | xargs -I {} kubectl cp ./index.html {}:/usr/share/nginx/html/index.html
