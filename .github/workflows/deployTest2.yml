@@ -36,28 +36,21 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.AZURE_SSH_KEY }}
 
-      # Step 6: Download index.html from GitHub
-      - name: Download index.html from GitHub
-        run: |
-          curl -o index.html https://raw.githubusercontent.com/JustineTekieli/Test/main/index.html
-
-      # Step 7: Create deploy.sh script file
+      # Step 6: Create deploy.sh script file
       - name: Create deploy.sh script
         run: |
           echo '#!/bin/bash' > deploy.sh
           echo 'sudo microk8s.kubectl set image deployment/nginx-webserver nginx=justine745/webservers:latest' >> deploy.sh
+          echo 'sudo microk8s.kubectl apply -f /home/azureuser/webservers-deployment.yml' >> deploy.sh
           echo 'sudo microk8s.kubectl rollout status deployment/nginx-webserver' >> deploy.sh
-          echo 'sudo microk8s.kubectl create configmap nginx-index-html --from-file=index.html' >> deploy.sh
-          echo 'sudo microk8s.kubectl apply -f /home/azureuser/nginx-webserver-deployment.yml' >> deploy.sh
 
-      # Step 8: Copy deploy.sh, index.html, and deployment YAML to Azure server
-      - name: Copy deploy.sh, index.html, and deployment YAML to Azure server
+      # Step 7: Copy deploy.sh to Azure server
+      - name: Copy deploy.sh to Azure server
         run: |
           scp -o StrictHostKeyChecking=no deploy.sh azureuser@20.224.160.198:/home/azureuser/deploy.sh
-          scp -o StrictHostKeyChecking=no index.html azureuser@20.224.160.198:/home/azureuser/index.html
-          scp -o StrictHostKeyChecking=no nginx-webserver-deployment.yml azureuser@20.224.160.198:/home/azureuser/nginx-webserver-deployment.yml
+          scp -o StrictHostKeyChecking=no webservers-deployment.yml azureuser@20.224.160.198:/home/azureuser/webservers-deployment.yml
 
-      # Step 9: Run deploy.sh on Azure server
+      # Step 8: Run deploy.sh on Azure server
       - name: Run deploy.sh on Azure server
         run: |
           ssh -o StrictHostKeyChecking=no azureuser@20.224.160.198 'bash /home/azureuser/deploy.sh'
