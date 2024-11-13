@@ -36,15 +36,22 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.AZURE_SSH_KEY }}
 
-      # Step 6: Deploy the latest image on Azure using kubectl
+      # Step 6: Deploy the latest image to MicroK8s using microk8s.kubectl
       - name: Deploy to MicroK8s
         run: |
           ssh -o StrictHostKeyChecking=no azureuser@20.224.160.198 << 'EOF'
-            sudo microk8s kubectl set image deployment/nginx-webserver nginx=justine745/webservers:latest
-            sudo microk8s kubectl rollout status deployment/nginx-webserver
+            sudo microk8s.kubectl set image deployment/nginx-webserver nginx=justine745/webservers:latest
+            sudo microk8s.kubectl rollout status deployment/nginx-webserver
           EOF
 
       # Step 7: Copy the index.html from GitHub to the Nginx container
       - name: Copy index.html to Nginx container
         run: |
-          kubectl get pods -l app=nginx-webserver -o jsonpath='{.items[0].metadata.name}' | xargs -I {} kubectl cp ./index.html {}:/usr/share/nginx/html/index.html
+          # Get the pod name of the Nginx deployment and copy the index.html into the pod
+          kubectl get pods -l app=nginx-webserver -o jsonpath='{.items[0].metadata.name}' | xargs -I {} microk8s.kubectl cp ./index.html {}:/usr/share/nginx/html/index.html
+
+      # Step 8: Reload Nginx in the pod after updating the index.html
+      - name: Reload Nginx to apply changes
+        run: |
+          # Reload Nginx in the pod to apply the new index.html file
+          kubectl get pods -l app=nginx-webserver -o jsonpath='{.items[0].metadata.name}' | xargs -I {} microk8s.kubectl exec {} -- nginx -s reload
