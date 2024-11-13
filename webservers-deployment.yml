@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-webserver
+spec:
+  replicas: 2  # Number of NGINX web server pods
+  selector:
+    matchLabels:
+      app: nginx-webserver
+  template:
+    metadata:
+      labels:
+        app: nginx-webserver
+    spec:
+      containers:
+        - name: nginx
+          image: justine745/webservers:latest  # Docker image from registry
+          ports:
+            - containerPort: 80  # HTTP port for serving web traffic
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/nginx.conf  # Mount the configMap file here
+              subPath: nginx.conf  # Ensure it's mounted as a single file
+        - name: nginx-prometheus-exporter
+          image: nginx/nginx-prometheus-exporter:latest
+          ports:
+            - containerPort: 9113  # Port for exposing Prometheus metrics
+          args:
+            - "-nginx.scrape-uri=http://localhost:80/stub_status"  # Ensure correct scrape URI
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: nginx-config  # Referencing the ConfigMap you created
