@@ -1,0 +1,46 @@
+name: Deploy to Azure MicroK8s
+
+on:
+  push:
+    branches:
+      - main  # Run this workflow on pushes to the main branch
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Check out the code from the repository
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      # Step 2: Log in to Docker Hub
+      - name: Log in to Docker Hub
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        run: |
+          echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin
+
+      # Step 3: Build the Docker image
+      - name: Build Docker image
+        run: docker build -t justine745/webservers:latest .
+
+      # Step 4: Push the Docker image to Docker Hub
+      - name: Push Docker image
+        run: docker push justine745/webservers:latest
+
+      # Step 5: Deploy the new image to the Azure server
+      - name: Set up SSH for Azure server
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets.AZURE_SSH_KEY }}
+
+      - name: Deploy to Azure MicroK8s
+        env:
+          DOCKER_IMAGE: "justine745/webservers:latest"
+        run: |
+          ssh -o StrictHostKeyChecking=no azureuser@<your-server-ip> << 'EOF'
+            sudo microk8s kubectl set image deployment/nginx-webserver nginx=$DOCKER_IMAGE
+            sudo microk8s kubectl rollout status deployment/nginx-webserver
+          EOF
