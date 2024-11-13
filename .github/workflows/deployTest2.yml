@@ -47,17 +47,24 @@ jobs:
       # Step 7: Copy the updated index.html from GitHub to the Nginx container
       - name: Copy index.html to Nginx container
         run: |
-          POD_NAME=$(sudo microk8s.kubectl get pods -l app=nginx-webserver -o jsonpath='{.items[0].metadata.name}')
-          echo "Found pod: $POD_NAME"
-          sudo microk8s.kubectl cp ./index.html $POD_NAME:/usr/share/nginx/html/index.html
+          scp -o StrictHostKeyChecking=no ./index.html azureuser@20.224.160.198:/home/azureuser/index.html
+          ssh -o StrictHostKeyChecking=no azureuser@20.224.160.198 << 'EOF'
+            POD_NAME=$(sudo microk8s.kubectl get pods -l app=nginx-webserver -o jsonpath='{.items[0].metadata.name}')
+            echo "Found pod: $POD_NAME"
+            sudo microk8s.kubectl cp /home/azureuser/index.html $POD_NAME:/usr/share/nginx/html/index.html
+          EOF
 
-      # Step 8: Restart the Nginx deployment to ensure changes take effect
+      # Step 8: Restart Nginx deployment to ensure changes take effect
       - name: Restart Nginx deployment
         run: |
-          sudo microk8s.kubectl rollout restart deployment nginx-webserver
+          ssh -o StrictHostKeyChecking=no azureuser@20.224.160.198 << 'EOF'
+            sudo microk8s.kubectl rollout restart deployment nginx-webserver
+          EOF
 
       # Step 9: Verify that the update is successful by curling the service
       - name: Verify Update
         run: |
-          IP_ADDRESS=$(sudo microk8s.kubectl get svc nginx-webserver -o jsonpath='{.spec.clusterIP}')
-          curl -v "http://$IP_ADDRESS"
+          ssh -o StrictHostKeyChecking=no azureuser@20.224.160.198 << 'EOF'
+            IP_ADDRESS=$(sudo microk8s.kubectl get svc nginx-webserver -o jsonpath='{.spec.clusterIP}')
+            curl -v "http://$IP_ADDRESS"
+          EOF
