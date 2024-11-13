@@ -36,7 +36,7 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.AZURE_SSH_KEY }}
 
-      # Step 6: Deploy the latest Docker image to MicroK8s (Azure)
+      # Step 6: Deploy the latest image on Azure using kubectl
       - name: Deploy to MicroK8s
         run: |
           ssh -o StrictHostKeyChecking=no azureuser@20.224.160.198 << 'EOF'
@@ -44,27 +44,36 @@ jobs:
             sudo microk8s kubectl rollout status deployment/nginx-webserver
           EOF
 
-      # Step 7: Copy the updated index.html from GitHub to the Nginx container
-      - name: Copy index.html to Nginx container
+      # Step 7: Check LoadBalancer Service (nginx-webserver)
+      - name: Check LoadBalancer Service (nginx-webserver)
         run: |
-          scp -o StrictHostKeyChecking=no ./index.html azureuser@20.224.160.198:/home/azureuser/index.html
           ssh -o StrictHostKeyChecking=no azureuser@20.224.160.198 << 'EOF'
-            POD_NAME=$(sudo microk8s.kubectl get pods -l app=nginx-webserver -o jsonpath='{.items[0].metadata.name}')
-            echo "Found pod: $POD_NAME"
-            sudo microk8s.kubectl cp /home/azureuser/index.html $POD_NAME:/usr/share/nginx/html/index.html
+            # Check if LoadBalancer service is available and responding
+            curl http://10.1.0.4
           EOF
 
-      # Step 8: Restart Nginx deployment to ensure changes take effect
-      - name: Restart Nginx deployment
+      # Step 8: Check the logs of the nginx-webserver pods
+      - name: Check logs of nginx-webserver pods
         run: |
           ssh -o StrictHostKeyChecking=no azureuser@20.224.160.198 << 'EOF'
+            # Get logs of the nginx-webserver pods
+            sudo microk8s.kubectl logs nginx-webserver-7c6b958c84-dsvhd
+            sudo microk8s.kubectl logs nginx-webserver-7c6b958c84-z96tw
+          EOF
+
+      # Step 9: Verify index.html in the nginx container
+      - name: Verify index.html in Nginx container
+        run: |
+          ssh -o StrictHostKeyChecking=no azureuser@20.224.160.198 << 'EOF'
+            # Check the content of index.html in the nginx container
+            sudo microk8s.kubectl exec -it nginx-webserver-7c6b958c84-dsvhd -- cat /usr/share/nginx/html/index.html
+            sudo microk8s.kubectl exec -it nginx-webserver-7c6b958c84-z96tw -- cat /usr/share/nginx/html/index.html
+          EOF
+
+      # Step 10: Restart the nginx-webserver deployment if necessary
+      - name: Restart nginx-webserver deployment
+        run: |
+          ssh -o StrictHostKeyChecking=no azureuser@20.224.160.198 << 'EOF'
+            # Restart nginx-webserver deployment to apply the latest updates
             sudo microk8s.kubectl rollout restart deployment nginx-webserver
-          EOF
-
-      # Step 9: Verify that the update is successful by curling the service
-      - name: Verify Update
-        run: |
-          ssh -o StrictHostKeyChecking=no azureuser@20.224.160.198 << 'EOF'
-            IP_ADDRESS=$(sudo microk8s.kubectl get svc nginx-webserver -o jsonpath='{.spec.clusterIP}')
-            curl -v "http://$IP_ADDRESS"
           EOF
